@@ -1,0 +1,30 @@
+-- Partner Level
+ select event_date_pt 
+, sum(VIEWABLE_IMPRESSIONS) / sum(ELIGIBLE_VIEWABLE_IMPRESSIONS) paid_impression_share
+from analysts.ADVERTISER_PAID_IMPRESSION_SHARE_V3 a
+left join rds_data.partners p on p.ID = a.partner_id
+where p.name = 'Siete Family Foods'
+and event_date_pt between '2022-01-01' and '2022-02-01'
+group by 1
+order by 1
+
+
+-- Campaign Level
+select event_date_pt
+, sum(VIEWABLE_IMPRESSIONS) / sum(ELIGIBLE_VIEWABLE_IMPRESSIONS) paid_impression_share
+from analysts.CAMPAIGN_PAID_IMPRESSION_SHARE_V3 a
+left join rds_data.campaigns c on a.campaign_id = c.id
+where c.name = 'Q1 2022 - Featured Product'
+and event_date_pt between '2022-01-01' and '2022-02-01'
+group by 1
+order by 1
+
+--Ad Group Level
+select event_date_pt
+, sum(VIEWABLE_IMPRESSIONS) / sum(ELIGIBLE_VIEWABLE_IMPRESSIONS) paid_impression_share
+from analysts.AG_PAID_IMPRESSION_SHARE_v3 a
+left join rds_data.ad_groups ad on a.ad_group_id = ad.id
+where ad.name = '5oz Tortilla Chips'
+and event_date_pt between '2022-01-01' and '2022-04-24'
+group by 1
+order by 1
