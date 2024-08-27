@@ -1,0 +1,20 @@
+-- Basket Penetration is similar to category share, but can be useful in cases where you want to control for price point.
+
+set start_date = '2021-09-01';
+set end_date = '2021-09-30';
+set department = 'GROCERY' ;
+set super_cat = 'CANDY, GUM, MINTS' ;
+set cat = 'CHOCOLATE' ;
+set partner_l1 = 'LINDT & SPRUNGLI A G';
+
+select  date_trunc('month', delivered_date_pt) month -- chose your date granularity 
+  ,count(distinct case when delivered_entity_level_1 = $partner_l1
+         then order_delivery_id else null end)/count(distinct order_delivery_id) as basket_pen
+FROM DWH.VW_EXPLORE_CPG_ORDER_ITEM_ENTITY oie
+-- join instadata.analysts.ms_user_first_purchase_instacart fp on fp.user_id = oie.user_id and fp.first_purchase_ic = oie.delivered_date_pt --for first basket penetration
+where delivered_date_pt between $start_date and $end_date
+ and delivered_entity_department = $department
+   and  delivered_entity_super_category = $super_cat
+  and delivered_entity_category = $cat
+group by 1
+order by 1
