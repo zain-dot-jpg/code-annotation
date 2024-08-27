@@ -1,0 +1,26 @@
+-- Category share is a commonly used metric used to show a partner's relative performance among competitors on the platform. 
+-- If you're not sure what category your partner falls in, try the following:
+-- a) look at which categories are tied to majority of sales
+-- b) check their icip report 
+-- c) confirm with Insights manager
+
+set start_date = '2021-09-01';
+set end_date = '2021-09-30';
+set department = 'GROCERY' ;
+set super_cat = 'CANDY, GUM, MINTS' ;
+set cat = 'CHOCOLATE' ;
+set partner_l1 = 'LINDT & SPRUNGLI A G';
+
+
+select
+    date_trunc('month', delivered_date_pt) as month -- chose your date granularity 
+    , sum(case when (delivered_entity_level_1 = $partner_l1) then final_charge_amt_usd end) partner_sales
+    , sum(final_charge_amt_usd) cat_sales    
+    ,sum(case when (delivered_entity_level_1 = $partner_l1) then final_charge_amt_usd end)/sum(final_charge_amt_usd) cat_share
+  from instadata.dwh.vw_explore_cpg_order_item_entity f
+  where delivered_date_pt  between $start_date and $end_date
+  and (delivered_entity_department = $department
+      and delivered_entity_super_category = $super_cat
+      and delivered_entity_category = $cat)
+  group by 1
+  order by 1
