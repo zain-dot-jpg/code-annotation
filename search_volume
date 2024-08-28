@@ -1,0 +1,45 @@
+-- Use this query (V4 tables) for all data for 5/03/2021 and beyond
+set start_date = '2021-09-06';
+set end_date = '2021-10-03';
+set term = 'nuts';
+
+
+select date_trunc('week', fesr.timestamp) week --chose date granularity
+      ,lower(search_details:query_reformulation) search_term
+      ,count(distinct search_id) searches
+       from dwh.fact_event_search_result fesr
+      -- join analysts.ng_term_clusters_v2 tc on lower(tc.term)=lower(search_details:query_reformulation) -- optional for category-level data
+where
+     search_details:exclude_ind = 'N'
+ and lower(search_details:query_reformulation) IS NOT NULL 
+ and lower(search_details:query_reformulation) <> ''
+ and search_details:search_type in ('search','storefront','unknown')
+  and fesr.timestamp  between $start_date and $end_date
+and lower(search_details:query_reformulation) = $term
+and user_id not in (
+ select distinct user_id::integer as user_id
+ from instadata.dwh.vw_known_scrapers
+ where user_id is not null)  -- to filter out bots
+group by 1,2 order by 1
+
+-- Use this query (V3 tables) for all data prior to 5/03/2021
+
+set start_date = '2020-09-07';
+set end_date = '2020-10-04';
+set term = 'nuts';
+
+select date_trunc('week', fes.search_event_date_pt) week --chose date granularity
+      ,lower(fes.term) search_term
+      ,count(distinct root_search_id) searches
+       from dwh.fact_event_search fes
+       --join analysts.ng_term_clusters_v2 tc on lower(tc.term)=lower(fes.term) --optional for category-level data
+        where 
+ fes.search_event_date_pt  between $start_date and $end_date
+and lower(fes.term) = $term
+and search_source = 'search_bar'
+and exclude_ind = 'N'
+and user_id not in (
+ select distinct user_id::integer as user_id
+ from instadata.dwh.vw_known_scrapers
+ where user_id is not null)  -- to filter out bots
+group by 1,2 order by 1
