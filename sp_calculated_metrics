@@ -1,0 +1,26 @@
+-- definitions:
+-- cpc = cost per click
+-- cpum = cost per unit moved
+-- ctr = click through rate
+-- roas = return on ad spend
+ 
+set partner_id = 227;
+set start_date = '2022-07-01';
+set end_date = '2022-07-10';
+
+
+
+select 
+event_date_pt
+,sum(billable_spend)/sum(clicks) as cpc
+,sum(billable_spend)/sum(ATTRIBUTED_QUANTITIES_LAST_TOUCH) as cpum_last_touch
+,sum(billable_spend)/sum(ATTRIBUTED_QUANTITIES_MULTI_TOUCH_LINEAR) as cpum_linear
+,sum(clicks)/sum(viewable_impressions) as ctr
+,sum(ATTRIBUTED_SALES_LAST_TOUCH_USD)/sum(billable_spend) roas_last_touch
+,sum(ATTRIBUTED_SALES_MULTI_TOUCH_LINEAR_USD)/sum(billable_spend) roas_linear
+from ads.ads_dwh.agg_featured_product_daily  
+where true
+and event_date_pt between $start_date and $end_date
+and partner_id = $partner_id
+group by 1
+order by 1
