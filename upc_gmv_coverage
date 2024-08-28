@@ -1,0 +1,14 @@
+--- Description: What percentage of a partner’s UPC are live on FP and what percentage of sales do those UPCs translate to
+
+set start_date = '2021-09-01';
+set end_date = '2021-09-30';
+set partner_l1 = 'LINDT & SPRUNGLI A G';
+
+select DELIVERED_ENTITY_LEVEL_1
+    ,sum(case when pp_eligible_impressions>0 then sales end)/sum(sales) as FP_GMV_COVERAGE
+    ,count(distinct case when pp_eligible_impressions>0 then product_id end)/count(distinct product_id) as FP_UPC_COVERAGE
+FROM dwh.VW_PARTNERS_PARTNER_LEVEL_METRICS
+where delivered_date_pt between $start_date and $end_date
+and delivered_entity_level_1 = $partner_l1
+group by 1
+order by 3 desc
