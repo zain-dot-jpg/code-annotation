@@ -1,0 +1,80 @@
+set del1 = 'MCCORMICK & CO INC'; --- used for halo calculations at the bottom of the query.
+set camp_id = 6899; -- single_campaign users sales to track
+set partner_id = 324 ; -- partner id the campaign belongs to
+set start_date = '2021-11-01'; ---cohort start period
+set end_date = '2021-11-30'; ---cohort end period
+set window_end_date = '2023-2-28'; ---how far to track the cohort
+
+
+--- find all ids of products in the fp campaign
+with products_in_fp_campaign as
+    (select
+            distinct
+            product_id from
+            ads.ads_dwh.AGG_FEATURED_PRODUCT_ON_PRODUCT_DAILY
+            where campaign_id = $camp_id)
+
+
+--- find the category map of the products in the fp campaigns.
+--- this is to find the peer set for the products
+, product_category_map as
+    (select
+        distinct
+        bc_department,
+        bc_super_category,
+        bc_category
+        from products_in_fp_campaign pifp
+        join ADS.EXT.VW_ADS_TAXONOMY_PRODUCTS adt on adt.product_id = pifp.product_id)
+
+---since we are only looking for a subset of products, to speed up the query create a subset of the OIE table.
+, oie_sub_table as (
+    select *
+    from dwh.vw_explore_cpg_order_item_entity
+    where delivered_entity_department in (select bc_department from product_category_map)
+    and delivered_entity_super_category in (select bc_super_category from product_category_map)
+    and delivered_entity_category in (select bc_category from product_category_map)
+    and delivered_date_pt between $start_date and $window_end_date
+    )
+
+--- easier to find exisitng users than it is to find trial users, we will just invert this list in selection process
+, existing_users as
+    (select
+        user_id, sum(initial_charge_amt_usd)
+        from oie_sub_table
+        where delivered_date_pt between dateadd('week',-13,$start_date) and $start_date
+        and delivered_product_id in (select product_id from products_in_fp_campaign)
+     group by 1)
+
+
+ --- find all fp converted users for the featured products of the brand during the time of the incremental
+, fp_converted as (
+    select
+        user_id,
+        attributed_sales,
+        attributed_quantities
+    from dwh.fact_product_placement_conversion
+    where event_date_pt between $start_date and $end_date
+    and product_id in (select product_id from products_in_fp_campaign))
+
+
+
+--- find the metrics of the users who are not existing and are fp converted users during the time of the incremental.
+
+--- removed users who were new to the platform between the start and end date. Cant account for users who don't have history.
+--- added orders and picked quantities
+--- added halo of the users, but need halo from month -1 for just clarity of visual.
+select
+    date_trunc('month',delivered_date_pt) as month,
+    case when delivered_product_id in (select product_id from products_in_fp_campaign) then '1. partner'
+    when delivered_product_id not in (select product_id from products_in_fp_campaign) and delivered_entity_level_1 = $del1 then '2. partner halo' else '3. comp' end partner,
+
+    sum(final_charge_amt_usd),
+    sum(picked_quantity),
+    count(distinct order_id)
+  from oie_sub_table
+  where delivered_date_pt between $start_date and $window_end_date
+  and user_id not in (select user_id from existing_users)
+  and user_id in (select user_id from fp_converted)
+  and user_id not in (select user_id from instadata.analysts.ms_user_first_purchase_instacart where first_purchase_ic between $start_date and $end_date)
+  group by 1,2
+  order by 1 asc
